@@ -306,6 +306,57 @@ podman exec -it postgresql_firmadigital psql -U firmadigital -d firmadigital -c 
 # Debe mostrar el registro insertado
 ```
 
+### Prueba con Firma Electrónica Real
+
+Para probar con firma electrónica real, se requiere un certificado digital válido emitido por una Autoridad de Certificación reconocida (ej. ANF AC Ecuador). El proceso completo incluye:
+
+#### 1. Preparar Certificado Digital
+- Obtener certificado digital en formato PKCS#12 (.p12)
+- Extraer clave privada y certificado público
+- Configurar keystore Java si es necesario
+
+#### 2. Firmar Documento Digitalmente
+```bash
+# Usar herramienta de firma digital (ejemplo con OpenSSL)
+openssl smime -sign -in test.pdf -out test_firmado.pdf \
+  -signer certificado.pem -inkey clave_privada.pem \
+  -certfile cadena_certificados.pem -outform DER
+```
+
+#### 3. Convertir Documento Firmado a Base64
+```bash
+# Convertir documento firmado a Base64
+certutil -encode test_firmado.pdf test_firmado.b64
+# Extraer Base64 limpio
+powershell -Command "$base64 = Get-Content -Path 'test_firmado.b64' -Raw; $base64 = $base64 -replace '-----BEGIN CERTIFICATE-----|-----END CERTIFICATE-----|\s', ''; Write-Host $base64"
+```
+
+#### 4. Enviar Documento Firmado al Servicio Receptor
+```bash
+curl -X POST http://localhost:3000/grabar_archivos_firmados \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cedula": "171057635",
+    "nombreDocumento": "test_firmado.pdf",
+    "archivo": "BASE64_DEL_DOCUMENTO_FIRMADO",
+    "firmasValidas": true,
+    "integridadDocumento": true,
+    "error": null,
+    "certificado": "CERTIFICADO_EN_BASE64"
+  }'
+```
+
+#### 5. Verificar Firma Digital
+- El servicio receptor debe validar la firma digital
+- Verificar integridad del documento
+- Confirmar certificado válido y no revocado
+- Almacenar documento con metadatos de firma
+
+#### 6. Validación en Producción
+- Usar servicios de validación de FirmaEC
+- Verificar contra listas de revocación (CRL/OCSP)
+- Confirmar cumplimiento normativo (Ley Comercio Electrónico, Decreto 981)
+
 ### Resultados de Pruebas Ejecutadas
 
 #### ✅ Creación de Documentos
@@ -361,7 +412,7 @@ Este proyecto está bajo la Licencia GPL v3. Ver [LICENSE](LICENSE) para más de
 
 ## 👥 Autores
 
-- **Cristian C.** - *Implementación y documentación* - [GitHub](https://github.com/cristhianc9)
+- **Cristhian Cabezas.** - *Implementación y documentación* - [GitHub](https://github.com/cristhianc9)
 - **Ministerio de Telecomunicaciones** - *Sistema FirmaEC original*
 
 ## 📞 Soporte
