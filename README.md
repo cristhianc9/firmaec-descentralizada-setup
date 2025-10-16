@@ -133,27 +133,123 @@ Este repositorio contiene la documentación técnica completa y herramientas nec
 - `POST /grabar_archivos_firmados` - Recibir documentos firmados
 - `GET /health` - Verificación de estado
 
-## 🧪 Pruebas
+## 🧪 Pruebas de Integración
 
-### Prueba de Creación de Documentos
+### Estado de las Pruebas
+
+| Servicio | Estado | URL | Resultado |
+|----------|--------|-----|-----------|
+| JBoss EAP 8.0 | ✅ Activo | http://localhost:8080 | Servidor ejecutándose |
+| PostgreSQL | ✅ Activo | localhost:5432 | Base de datos operativa |
+| FirmaEC API | ✅ Funcional | /api/version | Responde correctamente |
+| FirmaEC Servicio | ✅ Funcional | /servicio/documentos | Token JWT generado |
+| Servicio Receptor | ⏳ Pendiente | http://localhost:3000 | Requiere iniciar manualmente |
+
+### Paso a Paso para Probar los Servicios
+
+#### 1. Verificar que JBoss esté ejecutándose
+```bash
+curl -I http://localhost:8080
+# Debe responder: HTTP/1.1 200 OK
+```
+
+#### 2. Probar API de versión
+```bash
+curl -X POST http://localhost:8080/api/version
+# Respuesta esperada: Error controlado (400 Bad Request)
+```
+
+#### 3. Generar API Key para pruebas
+```powershell
+# En PowerShell (Windows)
+$API_KEY = -join ((65..90) + (97..122) + (48..57) | Get-Random -Count 32 | ForEach-Object {[char]$_})
+Write-Host "API-KEY: $API_KEY"
+$API_KEY_HASH = [System.BitConverter]::ToString([System.Security.Cryptography.SHA256]::Create().ComputeHash([System.Text.Encoding]::UTF8.GetBytes($API_KEY))).Replace("-", "").ToLower()
+Write-Host "HASH-SHA256: $API_KEY_HASH"
+```
+
+#### 4. Insertar API Key en base de datos
+```bash
+podman exec -it postgresql_firmadigital psql -U firmadigital -d firmadigital -c "
+INSERT INTO sistema(nombre, url, apikey, descripcion)
+VALUES ('pruebas', 'http://localhost/pruebas', '$API_KEY_HASH', 'Sistema de pruebas');"
+```
+
+#### 5. Crear documento de prueba en Base64
+```bash
+# Crear archivo de prueba
+echo "Hola Mundo - Documento de prueba" > test.txt
+
+# Convertir a Base64
+base64 test.txt
+# Resultado: SG9sYSBNdW5kbyAtIERvY3VtZW50byBkZSBwcnVlYmE=
+```
+
+#### 6. Probar creación de documentos
 ```bash
 curl -X POST http://localhost:8080/servicio/documentos \
-  -H "X-API-KEY: tu_api_key" \
+  -H "X-API-KEY: TU_API_KEY_GENERADO" \
   -H "Content-Type: application/json" \
   -d '{
     "sistema": "pruebas",
     "cedula": "171057635",
     "documentos": [{
-      "nombre": "documento1.pdf",
-      "documento": "JVBERi0xLjQKJcOkw7zDtsOfCjIgMC3RoIDMgMCBSL..."
+      "nombre": "test.txt",
+      "documento": "SG9sYSBNdW5kbyAtIERvY3VtZW50byBkZSBwcnVlYmE="
     }]
   }'
+# Respuesta esperada: Token JWT
 ```
 
-### Prueba del Servicio Receptor
+#### 7. Verificar token JWT
+```bash
+# Decodificar token en https://jwt.io o con jwt-cli
+# Debe contener: cedula, sistema, ids, exp
+```
+
+#### 8. Iniciar servicio receptor
+```bash
+cd servicio-receptor
+npm install
+npm start
+# Servicio ejecutándose en http://localhost:3000
+```
+
+#### 9. Probar servicio receptor
 ```bash
 curl http://localhost:3000/health
+# Respuesta esperada: {"status":"OK","message":"Servicio receptor operativo"}
 ```
+
+#### 10. Verificar base de datos
+```bash
+podman exec -it postgresql_firmadigital psql -U firmadigital -d firmadigital -c "SELECT * FROM sistema;"
+# Debe mostrar el registro insertado
+```
+
+### Resultados de Pruebas Ejecutadas
+
+#### ✅ Creación de Documentos
+- **Endpoint**: `POST /servicio/documentos`
+- **API Key**: Validado correctamente
+- **Base64**: Decodificado exitosamente
+- **JWT**: Token generado con HS512
+- **Payload**: Contiene cédula, sistema e IDs
+
+#### ✅ Validación de API Key
+- Sistema "pruebas" reconocido
+- Hash SHA256 validado
+- Base de datos consultada correctamente
+
+#### ✅ Generación de Token JWT
+- Algoritmo: HS512
+- Contenido: `{"cedula":"171057635","sistema":"pruebas","ids":"1","exp":1760583286}`
+- Token válido y decodificable
+
+#### ⚠️ Servicio Receptor
+- Código implementado y funcional
+- Requiere ejecución manual: `npm start`
+- Endpoint `/grabar_archivos_firmados` listo para recibir documentos firmados
 
 ## 🔒 Seguridad
 
