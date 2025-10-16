@@ -143,7 +143,7 @@ Este repositorio contiene la documentación técnica completa y herramientas nec
 | PostgreSQL | ✅ Activo | localhost:5432 | Base de datos operativa |
 | FirmaEC API | ✅ Funcional | /api/version | Responde correctamente |
 | FirmaEC Servicio | ✅ Funcional | /servicio/documentos | Token JWT generado |
-| Servicio Receptor | ⏳ Pendiente | http://localhost:3000 | Requiere iniciar manualmente |
+| Servicio Receptor | ✅ Activo | http://localhost:3000 | Servicio ejecutándose correctamente |
 
 ### Paso a Paso para Probar los Servicios
 
@@ -175,17 +175,70 @@ INSERT INTO sistema(nombre, url, apikey, descripcion)
 VALUES ('pruebas', 'http://localhost/pruebas', '$API_KEY_HASH', 'Sistema de pruebas');"
 ```
 
-#### 5. Crear documento de prueba en Base64
+#### 5. Crear documento PDF de prueba
 ```bash
-# Crear archivo de prueba
-echo "Hola Mundo - Documento de prueba" > test.txt
-
-# Convertir a Base64
-base64 test.txt
-# Resultado: SG9sYSBNdW5kbyAtIERvY3VtZW50byBkZSBwcnVlYmE=
+# Crear archivo PDF válido
+echo "%PDF-1.4
+1 0 obj
+<<
+/Type /Catalog
+/Pages 2 0 R
+>>
+endobj
+2 0 obj
+<<
+/Type /Pages
+/Kids [3 0 R]
+/Count 1
+>>
+endobj
+3 0 obj
+<<
+/Type /Page
+/Parent 2 0 R
+/MediaBox [0 0 612 792]
+/Contents 4 0 R
+>>
+endobj
+4 0 obj
+<<
+/Length 44
+>>
+stream
+BT
+/F1 12 Tf
+72 720 Td
+(Hola Mundo - Documento de prueba) Tj
+ET
+endstream
+endobj
+xref
+0 5
+0000000000 65535 f
+0000000009 00000 n
+0000000058 00000 n
+0000000115 00000 n
+0000000274 00000 n
+trailer
+<<
+/Size 5
+/Root 1 0 R
+>>
+startxref
+418
+%%EOF" > test.pdf
 ```
 
-#### 6. Probar creación de documentos
+#### 6. Convertir PDF a Base64
+```bash
+# En Windows con certutil
+certutil -encode test.pdf test.b64
+
+# Extraer Base64 limpio (sin headers)
+powershell -Command "$base64 = Get-Content -Path 'test.b64' -Raw; $base64 = $base64 -replace '-----BEGIN CERTIFICATE-----|-----END CERTIFICATE-----|\s', ''; Write-Host $base64"
+```
+
+#### 7. Probar creación de documentos
 ```bash
 curl -X POST http://localhost:8080/servicio/documentos \
   -H "X-API-KEY: TU_API_KEY_GENERADO" \
@@ -194,20 +247,20 @@ curl -X POST http://localhost:8080/servicio/documentos \
     "sistema": "pruebas",
     "cedula": "171057635",
     "documentos": [{
-      "nombre": "test.txt",
-      "documento": "SG9sYSBNdW5kbyAtIERvY3VtZW50byBkZSBwcnVlYmE="
+      "nombre": "test.pdf",
+      "documento": "BASE64_DEL_PDF_GENERADO"
     }]
   }'
 # Respuesta esperada: Token JWT
 ```
 
-#### 7. Verificar token JWT
+#### 8. Verificar token JWT
 ```bash
 # Decodificar token en https://jwt.io o con jwt-cli
 # Debe contener: cedula, sistema, ids, exp
 ```
 
-#### 8. Iniciar servicio receptor
+#### 9. Iniciar servicio receptor
 ```bash
 cd servicio-receptor
 npm install
@@ -215,13 +268,39 @@ npm start
 # Servicio ejecutándose en http://localhost:3000
 ```
 
-#### 9. Probar servicio receptor
+#### 10. Probar servicio receptor
 ```bash
 curl http://localhost:3000/health
 # Respuesta esperada: {"status":"OK","message":"Servicio receptor operativo"}
 ```
 
-#### 10. Verificar base de datos
+#### 11. Simular envío de documento firmado al receptor
+```bash
+curl -X POST http://localhost:3000/grabar_archivos_firmados \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cedula": "171057635",
+    "nombreDocumento": "test.pdf",
+    "archivo": "BASE64_DEL_PDF_FIRMADO",
+    "firmasValidas": true,
+    "integridadDocumento": true,
+    "error": null,
+    "certificado": "certificado_base64"
+  }'
+# Respuesta esperada: {"status":"OK","message":"Documento recibido correctamente"}
+```
+
+#### 12. Verificar documento recibido
+```bash
+# Verificar archivo guardado
+dir servicio-receptor\documentos_firmados\
+# Debe mostrar: 171057635_test.pdf
+
+# Abrir PDF para verificar
+start servicio-receptor\documentos_firmados\171057635_test.pdf
+```
+
+#### 13. Verificar base de datos
 ```bash
 podman exec -it postgresql_firmadigital psql -U firmadigital -d firmadigital -c "SELECT * FROM sistema;"
 # Debe mostrar el registro insertado
