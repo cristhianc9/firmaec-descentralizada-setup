@@ -50,71 +50,84 @@ Este repositorio contiene la documentación técnica completa y herramientas nec
 ### Instalación
 
 1. **Clonar el repositorio**
-   ```bash
-   git clone https://github.com/cristhianc9/firmaec-decentralizada.git
-   cd firmaec-decentralizada
-   ```
+    ```bash
+    git clone https://github.com/cristhianc9/firmaec-decentralizada.git
+    cd firmaec-decentralizada
+    ```
 
 2. **Configurar ambiente**
-   - **Windows**: Ver [README-INSTALACION-WINDOWS.md](README-INSTALACION-WINDOWS.md)
-   - **RHEL 9**: Ver [README-INSTALACION-RHEL9.md](README-INSTALACION-RHEL9.md)
+    - **Windows**: Ver [README-INSTALACION-WINDOWS.md](README-INSTALACION-WINDOWS.md)
+    - **RHEL 9**: Ver [README-INSTALACION-RHEL9.md](README-INSTALACION-RHEL9.md)
 
 3. **Compilar proyectos**
-   ```bash
-   # Clonar y compilar proyectos fuente
-   git clone https://minka.gob.ec/mintel/ge/firmaec/firmadigital-libreria.git
-   git clone https://minka.gob.ec/mintel/ge/firmaec/firmadigital-api.git
-   git clone https://minka.gob.ec/mintel/ge/firmaec/firmadigital-servicio.git
+    ```bash
+    # Crear directorio de desarrollo
+    mkdir firmaec-dev
+    cd firmaec-dev
 
-   # Compilar en orden
-   cd firmadigital-libreria && mvn clean package
-   cd ../firmadigital-api && mvn clean package
-   cd ../firmadigital-servicio && mvn clean package
-   ```
+    # Clonar y compilar proyectos fuente
+    git clone https://minka.gob.ec/mintel/ge/firmaec/firmadigital-libreria.git
+    git clone https://minka.gob.ec/mintel/ge/firmaec/firmadigital-api.git
+    git clone https://minka.gob.ec/mintel/ge/firmaec/firmadigital-servicio.git
+
+    # Compilar en orden
+    cd firmadigital-libreria && mvn clean package
+    cd ../firmadigital-api && mvn clean package
+    cd ../firmadigital-servicio && mvn clean package
+    ```
 
 4. **Configurar base de datos**
-   ```bash
-   # Iniciar PostgreSQL
-   podman run -d --name postgresql_firmadigital \
-     -e POSTGRESQL_USER=firmadigital \
-     -e POSTGRESQL_PASSWORD=firmadigital \
-     -e POSTGRESQL_DATABASE=firmadigital \
-     -p 5432:5432 \
-     docker.io/centos/postgresql-96-centos7
+    ```bash
+    # Iniciar PostgreSQL (Windows usar ^ para continuar línea)
+    podman run -d --name postgresql_firmadigital \
+      -e POSTGRESQL_USER=firmadigital \
+      -e POSTGRESQL_PASSWORD=firmadigital \
+      -e POSTGRESQL_DATABASE=firmadigital \
+      -p 5432:5432 \
+      docker.io/centos/postgresql-96-centos7
 
-   # Crear tabla e insertar registro de prueba
-   podman exec -it postgresql_firmadigital psql -U firmadigital -d firmadigital -c "
-   CREATE TABLE sistema (id SERIAL PRIMARY KEY, nombre VARCHAR(255), descripcion VARCHAR(255), url VARCHAR(255), apikey VARCHAR(255), apikeyrest VARCHAR(255));
-   INSERT INTO sistema VALUES (1, 'pruebas', 'Sistema de pruebas', 'http://localhost/pruebas', 'hash_sha256_del_api_key', '');"
-   ```
+    # Crear tabla e insertar registro de prueba
+    podman exec -it postgresql_firmadigital psql -U firmadigital -d firmadigital -c "
+    CREATE TABLE IF NOT EXISTS sistema (
+        id SERIAL PRIMARY KEY,
+        nombre VARCHAR(255),
+        descripcion VARCHAR(255),
+        url VARCHAR(255),
+        apikey VARCHAR(255),
+        apikeyrest VARCHAR(255)
+    );
+    INSERT INTO sistema(nombre, url, apikey, descripcion)
+    VALUES ('pruebas', 'http://localhost/pruebas', 'hash_sha256_del_api_key', 'Sistema de pruebas');"
+    ```
 
 5. **Configurar JBoss EAP**
-   ```bash
-   # Crear usuario administrador
-   cd $JBOSS_HOME/bin
-   ./add-user.sh
+    ```bash
+    # Crear usuario administrador (Windows: add-user.bat)
+    cd $JBOSS_HOME/bin
+    ./add-user.sh  # En Windows: add-user.bat
 
-   # Configurar datasource y variables
-   ./jboss-cli.sh --connect --command="
-   module add --name=org.postgresql --resources=postgresql-42.7.3.jar --dependencies=javax.api,javax.transaction.api
-   /subsystem=datasources/jdbc-driver=postgresql:add(driver-name=postgresql,driver-module-name=org.postgresql,driver-xa-datasource-class-name=org.postgresql.xa.PGXADataSource)
-   data-source add --name=FirmaDigitalDS --jndi-name=java:/FirmaDigitalDS --driver-name=postgresql --connection-url=jdbc:postgresql://localhost:5432/firmadigital --user-name=firmadigital --password=firmadigital
-   /system-property=firmadigital-servicio.url:add(value=\"http://localhost:8080/servicio\")
-   "
-   ```
+    # Configurar datasource y variables (Windows: jboss-cli.bat)
+    ./jboss-cli.sh --connect --command="  # En Windows: jboss-cli.bat --connect --command=\"
+    module add --name=org.postgresql --resources=postgresql-42.7.3.jar --dependencies=javax.api,javax.transaction.api
+    /subsystem=datasources/jdbc-driver=postgresql:add(driver-name=postgresql,driver-module-name=org.postgresql,driver-xa-datasource-class-name=org.postgresql.xa.PGXADataSource)
+    data-source add --name=FirmaDigitalDS --jndi-name=java:/FirmaDigitalDS --driver-name=postgresql --connection-url=jdbc:postgresql://localhost:5432/firmadigital --user-name=firmadigital --password=firmadigital --valid-connection-checker-class-name=org.jboss.jca.adapters.jdbc.extensions.postgres.PostgreSQLValidConnectionChecker --exception-sorter-class-name=org.jboss.jca.adapters.jdbc.extensions.postgres.PostgreSQLExceptionSorter
+    /system-property=firmadigital-servicio.url:add(value=\"http://localhost:8080/servicio\")
+    \"
+    ```
 
 6. **Desplegar aplicaciones**
-   ```bash
-   cp firmadigital-api/target/api.war $JBOSS_HOME/standalone/deployments/
-   cp firmadigital-servicio/target/servicio.war $JBOSS_HOME/standalone/deployments/
-   ```
+    ```bash
+    # Copiar archivos WAR (Windows: copy, Linux: cp)
+    cp firmadigital-api/target/api.war $JBOSS_HOME/standalone/deployments/  # Windows: copy firmadigital-api\target\api.war %JBOSS_HOME%\standalone\deployments\
+    cp firmadigital-servicio/target/servicio.war $JBOSS_HOME/standalone/deployments/  # Windows: copy firmadigital-servicio\target\servicio.war %JBOSS_HOME%\standalone\deployments\
+    ```
 
 7. **Configurar servicio receptor**
-   ```bash
-   cd servicio-receptor
-   npm install
-   npm start
-   ```
+    ```bash
+    cd servicio-receptor
+    npm install
+    npm start  # Servicio ejecutándose en http://localhost:3000
+    ```
 
 ## 📚 Documentación
 
@@ -166,6 +179,14 @@ $API_KEY = -join ((65..90) + (97..122) + (48..57) | Get-Random -Count 32 | ForEa
 Write-Host "API-KEY: $API_KEY"
 $API_KEY_HASH = [System.BitConverter]::ToString([System.Security.Cryptography.SHA256]::Create().ComputeHash([System.Text.Encoding]::UTF8.GetBytes($API_KEY))).Replace("-", "").ToLower()
 Write-Host "HASH-SHA256: $API_KEY_HASH"
+```
+
+```bash
+# En Linux/macOS (alternativa)
+API_KEY=$(openssl rand -hex 32)
+echo "API-KEY: $API_KEY"
+API_KEY_HASH=$(echo -n "$API_KEY" | sha256sum | cut -d' ' -f1)
+echo "HASH-SHA256: $API_KEY_HASH"
 ```
 
 #### 4. Insertar API Key en base de datos
@@ -238,6 +259,13 @@ certutil -encode test.pdf test.b64
 powershell -Command "$base64 = Get-Content -Path 'test.b64' -Raw; $base64 = $base64 -replace '-----BEGIN CERTIFICATE-----|-----END CERTIFICATE-----|\s', ''; Write-Host $base64"
 ```
 
+```bash
+# En Linux/macOS
+base64 test.pdf > test.b64
+# O usando openssl
+openssl base64 -in test.pdf -out test.b64
+```
+
 #### 7. Probar creación de documentos
 ```bash
 curl -X POST http://localhost:8080/servicio/documentos \
@@ -292,12 +320,12 @@ curl -X POST http://localhost:3000/grabar_archivos_firmados \
 
 #### 12. Verificar documento recibido
 ```bash
-# Verificar archivo guardado
-dir servicio-receptor\documentos_firmados\
+# Verificar archivo guardado (Windows: dir, Linux: ls)
+dir servicio-receptor\documentos_firmados\  # Linux: ls servicio-receptor/documentos_firmados/
 # Debe mostrar: 171057635_test.pdf
 
-# Abrir PDF para verificar
-start servicio-receptor\documentos_firmados\171057635_test.pdf
+# Abrir PDF para verificar (Windows: start, Linux: xdg-open o similar)
+start servicio-receptor\documentos_firmados\171057635_test.pdf  # Linux: xdg-open servicio-receptor/documentos_firmados/171057635_test.pdf
 ```
 
 #### 13. Verificar base de datos
@@ -325,10 +353,17 @@ openssl smime -sign -in test.pdf -out test_firmado.pdf \
 
 #### 3. Convertir Documento Firmado a Base64
 ```bash
-# Convertir documento firmado a Base64
+# Convertir documento firmado a Base64 (Windows)
 certutil -encode test_firmado.pdf test_firmado.b64
 # Extraer Base64 limpio
 powershell -Command "$base64 = Get-Content -Path 'test_firmado.b64' -Raw; $base64 = $base64 -replace '-----BEGIN CERTIFICATE-----|-----END CERTIFICATE-----|\s', ''; Write-Host $base64"
+```
+
+```bash
+# En Linux/macOS
+base64 test_firmado.pdf > test_firmado.b64
+# O usando openssl
+openssl base64 -in test_firmado.pdf -out test_firmado.b64
 ```
 
 #### 4. Enviar Documento Firmado al Servicio Receptor
