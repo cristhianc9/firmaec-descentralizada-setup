@@ -17,7 +17,7 @@ Este repositorio contiene la documentación técnica completa y herramientas nec
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Sistema       │    │   FirmaEC       │    │   Base de       │
-│   Requirente    │◄──►│   Descentralizada│◄──►│   Datos         │
+│   Requirente    │◄──►│  Descentralizada│◄──►│   Datos         │
 │                 │    │                 │    │   PostgreSQL    │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       │
