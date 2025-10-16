@@ -1,0 +1,24 @@
+{
+    "name": "firmaec-receptor",
+    "version": "1.0.0",
+    "description": "Servicio REST receptor de documentos firmados para FirmaEC",
+    "main": "servicio-receptor.js",
+    "scripts": {
+        "start": "node servicio-receptor.js",
+        "dev": "nodemon servicio-receptor.js"
+    },
+    "dependencies": {
+        "express": "^4.18.2"
+    },
+    "devDependencies": {
+        "nodemon": "^3.0.1"
+    },
+    "keywords": [
+        "firmaec",
+        "firmadigital",
+        "rest",
+        "api"
+    ],
+    "author": "",
+    "license": "ISC"
+}
